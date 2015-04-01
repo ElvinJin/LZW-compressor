@@ -1,3 +1,21 @@
+/*
+* CSCI3280 Introduction toMultimedia Systems
+*
+* --- Declaration --- 
+*
+* I declare that the assignment here submitted is original except for source
+* material explicitly acknowledged. I also acknowledge that I am aware of
+* University policy and regulations on honesty in academic work, and of the
+* disciplinary guidelines and procedures applicable to breaches of such policy
+* and regulations, as contained in the website
+* http://www.cuhk.edu.hk/policy/academichonesty/ 
+*
+* Assignment 2 
+* Name: JIN, Peng
+* Student ID : 1155014559
+* Email Addr : pjin.elvin@gmail.com
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +56,13 @@ int main(int argc, char **argv)
 			writefileheader(lzw_file,input_file_names,no_of_file);
         	        	
 			/* ADD CODES HERE */
-        	
+			for (int i = 0; i < no_of_file; ++i)
+			{
+				FILE *file_to_compress = fopen(input_file_names[i], "rb");
+				compress(file_to_compress, lzw_file);
+				fclose(file_to_compress);
+			}
+
 			fclose(lzw_file);        	
 		} else
 		if ( strcmp(argv[1],"-d") == 0)
@@ -51,6 +75,12 @@ int main(int argc, char **argv)
 			readfileheader(lzw_file,&output_file_names,&no_of_file);
 			
 			/* ADD CODES HERE */
+			for (int i = 0; i < no_of_file; ++i)
+			{
+				FILE *file_to_output = fopen(strtok(output_file_names, '\n'));
+				decompress(lzw_file, file_to_output);
+				fclose(file_to_output);
+			}
 			
 			fclose(lzw_file);		
 			free(output_file_names);
@@ -156,7 +186,6 @@ unsigned int read_code(FILE *input, unsigned int code_size)
     return(return_value);
 }
 
-
 /*****************************************************************
  *
  * write_code() - write a code (of specific length) to the file 
@@ -192,10 +221,62 @@ void write_code(FILE *output, unsigned int code, unsigned int code_size)
  * compress() - compress the source file and output the coded text
  *
  ****************************************************************/
+
+typedef struct node_struct {
+	struct node_struct *child[256];
+} node;
+
 void compress(FILE *input, FILE *output)
 {
-
 	/* ADD CODES HERE */
+	static node dic_root;
+	int c;
+	node *p;
+	static int used_index = -1;
+
+	static node node_array[4096];
+
+	if (used_index == -1)
+	{
+		for (int i = 0; i < 256; ++i)
+		{
+			dic_root.child[i] = &node_array[i];
+		}
+		used_index = 255;
+	}
+
+	// Start loop
+	p = &dic_root;
+	c = fgetc(input);
+
+	while (c != EOF) {
+		if (p->child[c] == NULL)
+		{
+			// Output p
+			write_code(output, p - node_array, 12);
+			// Add (p,c) to dictionary/tree
+			// clear tree if it's full
+			if (used_index == 4095)
+			{
+				memset(node_array, 0, sizeof(node));
+				p = &dic_root;
+				used_index = 255;
+			}
+			used_index++;
+			p->child[c] = &node_array[used_index];
+
+			// p point to c
+			p = dic_root.child[c];
+		} 
+		else {
+			p = p->child[c];
+		}
+
+		c = fgetc(input);
+	}
+
+	write_code(output, p - node_array, 12);
+	write_code(output, 4095, 12);
 
 }
 
@@ -205,9 +286,12 @@ void compress(FILE *input, FILE *output)
  * decompress() - decompress a compressed file to the orig. file
  *
  ****************************************************************/
+
+void reverse_put_c(FILE *output, int index) {
+	
+}
+
 void decompress(FILE *input, FILE *output)
 {	
-
-	/* ADD CODES HERE */
-
+	
 }
