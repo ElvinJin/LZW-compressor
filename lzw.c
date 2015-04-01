@@ -293,5 +293,30 @@ void reverse_put_c(FILE *output, int index) {
 
 void decompress(FILE *input, FILE *output)
 {	
-	
+	static int parent[4096];
+	static int child[4096];
+
+	// init the dic
+	for (int i = 0; i < 256; ++i)
+	{
+		parent[i] = -1;
+		child[i] = -1;
+	}
+
+	unsigned int cW = read_code(input, 12);
+	unsigned int pW;
+
+	while (cW != 4095)
+	{
+		pW = cW;
+		cW = read_code(input, 12);
+		if (parent[cW] == 0)
+		{
+			
+		} else {
+
+		}
+	}
+
+	fputc(EOF, output);
 }
