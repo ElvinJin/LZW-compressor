@@ -77,12 +77,13 @@ int main(int argc, char **argv)
 			/* ADD CODES HERE */
 			for (int i = 0; i < no_of_file; ++i)
 			{
-				FILE *file_to_output = fopen(strtok(output_file_names, '\n'));
+				char *file_name = strtok(output_file_names, "\n");
+				FILE *file_to_output = fopen(file_name, "wb");
 				decompress(lzw_file, file_to_output);
 				fclose(file_to_output);
 			}
 			
-			fclose(lzw_file);		
+			fclose(lzw_file);
 			free(output_file_names);
 		}else
 			printusage = 1;
@@ -222,19 +223,19 @@ void write_code(FILE *output, unsigned int code, unsigned int code_size)
  *
  ****************************************************************/
 
-typedef struct node_struct {
-	struct node_struct *child[256];
-} node;
+typedef struct com_node_struct {
+	struct com_node_struct *child[256];
+} com_node;
 
 void compress(FILE *input, FILE *output)
 {
 	/* ADD CODES HERE */
-	static node dic_root;
+	static com_node dic_root;
 	int c;
-	node *p;
+	com_node *p = &dic_root;
 	static int used_index = -1;
 
-	static node node_array[4096];
+	static com_node node_array[4096];
 
 	if (used_index == -1)
 	{
@@ -246,7 +247,6 @@ void compress(FILE *input, FILE *output)
 	}
 
 	// Start loop
-	p = &dic_root;
 	c = fgetc(input);
 
 	while (c != EOF) {
@@ -256,19 +256,23 @@ void compress(FILE *input, FILE *output)
 			write_code(output, p - node_array, 12);
 			// Add (p,c) to dictionary/tree
 			// clear tree if it's full
-			if (used_index == 4095)
+			if (used_index == 4094)
 			{
-				memset(node_array, 0, sizeof(node));
+				memset(node_array, 0, sizeof(com_node));
 				p = &dic_root;
 				used_index = 255;
 			}
-			used_index++;
-			p->child[c] = &node_array[used_index];
+			else 
+			{
+				used_index++;
+				p->child[c] = &node_array[used_index];
+			}
 
 			// p point to c
 			p = dic_root.child[c];
 		} 
-		else {
+		else 
+		{
 			p = p->child[c];
 		}
 
@@ -286,37 +290,80 @@ void compress(FILE *input, FILE *output)
  * decompress() - decompress a compressed file to the orig. file
  *
  ****************************************************************/
+typedef struct de_node_struct {
+	char character;
+	struct de_node_struct *parent;
+} de_node;
 
-void reverse_put_c(FILE *output, int index) {
-	
+char reverse_put_c(FILE *output, de_node *node_p, de_node *dic_root_p)
+{
+	char root_char;
+
+	if (node_p->parent != dic_root_p)
+		root_char = reverse_put_c(output, node_p->parent, dic_root_p);
+	else
+		root_char = node_p->character;
+
+	fputc(node_p->character, output);
+
+	return root_char;
 }
 
 void decompress(FILE *input, FILE *output)
 {	
-	static int parent[4096];
-	static int child[4096];
+	static de_node node_array[4096];
+	static de_node dic_root;
+	static int used_index = -1;
 
 	// init the dic
 	for (int i = 0; i < 256; ++i)
 	{
-		parent[i] = -1;
-		child[i] = -1;
+		node_array[i].character = (char)i;
+		node_array[i].parent = &dic_root;
+		used_index++;
 	}
 
 	unsigned int cW = read_code(input, 12);
-	unsigned int pW;
+	fputc((char)cW, output);
+	unsigned int pW = cW;
+	unsigned int C;
 
 	while (cW != 4095)
 	{
-		pW = cW;
 		cW = read_code(input, 12);
-		if (parent[cW] == 0)
-		{
-			
-		} else {
 
+		if (node_array[cW].parent != NULL)
+		{
+			C = (unsigned int)reverse_put_c(output, &node_array[cW], &dic_root);
+			
+			// Clear the dic if it's full
+			if (used_index == 4094)
+			{
+				memset(node_array, 0, sizeof(de_node));
+				for (int i = 0; i < 256; ++i)
+				{
+					node_array[i].character = (char)i;
+					node_array[i].parent = &dic_root;
+				}
+				used_index = 255;
+				pW = C;
+			} else {
+				used_index++;
+				node_array[used_index].character = (char)C;
+				node_array[used_index].parent = &node_array[pW];
+				pW = cW;
+			}
+
+
+		} else {
+			C = (unsigned int)reverse_put_c(output, &node_array[pW], &dic_root);
+			fputc((char)C, output);
+
+			used_index++;
+			node_array[used_index].character = (char)C;
+			node_array[used_index].parent = &node_array[pW];
 		}
 	}
 
-	fputc(EOF, output);
+	// fputc(EOF, output);
 }
