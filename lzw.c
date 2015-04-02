@@ -263,7 +263,7 @@ void compress(FILE *input, FILE *output)
 			// Add (p,c) to dictionary/tree
 			// clear tree if it's full
 
-			if (used_index >= 4095)
+			if (used_index >= 4094)
 			{
 				memset(node_array, 0, 4096*sizeof(com_node));
 				used_index = 255;// should be 255
@@ -341,8 +341,7 @@ void decompress(FILE *input, FILE *output)
 	{
 		pW = cW;
 		cW = read_code(input, CODE_SIZE);
-		if (cW == 4095)
-			break;
+		if (cW == 4095) break;
 
 		if (de_used_index == 4094)
 		{
@@ -353,7 +352,6 @@ void decompress(FILE *input, FILE *output)
 				node_array[i].parent = &dic_root;
 			}
 			de_used_index = 255;
-
 			pW = -1;
 		}
 
@@ -367,7 +365,6 @@ void decompress(FILE *input, FILE *output)
 				node_array[de_used_index].parent = &node_array[pW];
 			}
 		} else {
-
 			C = (unsigned int)reverse_put_c(output, &node_array[pW], &dic_root);
 			fputc((char)C, output);
 
@@ -378,6 +375,4 @@ void decompress(FILE *input, FILE *output)
 			}
 		}
 	}
-
-	// fputc(EOF, output);
 }
