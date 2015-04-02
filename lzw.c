@@ -62,6 +62,7 @@ int main(int argc, char **argv)
 				compress(file_to_compress, lzw_file);
 				fclose(file_to_compress);
 			}
+			write_code(lzw_file, 0, CODE_SIZE);
 
 			fclose(lzw_file);        	
 		} else
@@ -74,11 +75,16 @@ int main(int argc, char **argv)
 			no_of_file = 0;			
 			readfileheader(lzw_file,&output_file_names,&no_of_file);
 			
+			char *current_file_name = NULL;
 			/* ADD CODES HERE */
 			for (int i = 0; i < no_of_file; ++i)
 			{
-				char *file_name = strtok(output_file_names, "\n");
-				FILE *file_to_output = fopen(file_name, "wb");
+				if (current_file_name == NULL)
+					current_file_name = strtok(output_file_names, "\n");
+				else
+					current_file_name = strtok(NULL, "\n");
+				printf(current_file_name);
+				FILE *file_to_output = fopen(current_file_name, "wb");
 				decompress(lzw_file, file_to_output);
 				fclose(file_to_output);
 			}
@@ -195,7 +201,7 @@ unsigned int read_code(FILE *input, unsigned int code_size)
 void write_code(FILE *output, unsigned int code, unsigned int code_size)
 {
     static int output_bit_count = 0;
-    static unsigned long output_bit_buffer = 0L;
+    static unsigned int output_bit_buffer = 0;
 
     /* Each output code is first stored in output_bit_buffer,    */
     /*   which is 32-bit wide. Content in output_bit_buffer is   */
@@ -203,7 +209,7 @@ void write_code(FILE *output, unsigned int code, unsigned int code_size)
 
     /* output_bit_count stores the no. of bits left              */    
 
-    output_bit_buffer |= (unsigned long) code << (32-code_size-output_bit_count);
+    output_bit_buffer |= (unsigned) code << (32-code_size-output_bit_count);
     output_bit_count += code_size;
 
     while (output_bit_count >= 8) {
@@ -232,7 +238,7 @@ void compress(FILE *input, FILE *output)
 	/* ADD CODES HERE */
 	static com_node dic_root;
 	int c;
-	com_node *p = &dic_root;
+	static com_node *p = &dic_root;
 	static int used_index = -1;
 
 	static com_node node_array[4096];
@@ -253,14 +259,14 @@ void compress(FILE *input, FILE *output)
 		if (p->child[c] == NULL)
 		{
 			// Output p
-			write_code(output, p - node_array, 12);
+			write_code(output, p - node_array, CODE_SIZE);
 			// Add (p,c) to dictionary/tree
 			// clear tree if it's full
-			if (used_index == 4094)
+
+			if (used_index >= 4095)
 			{
-				memset(node_array, 0, sizeof(com_node));
-				p = &dic_root;
-				used_index = 255;
+				memset(node_array, 0, 4096*sizeof(com_node));
+				used_index = 255;// should be 255
 			}
 			else 
 			{
@@ -279,9 +285,9 @@ void compress(FILE *input, FILE *output)
 		c = fgetc(input);
 	}
 
-	write_code(output, p - node_array, 12);
-	write_code(output, 4095, 12);
-
+	write_code(output, p - node_array, CODE_SIZE);
+	write_code(output, 4095, CODE_SIZE);
+	p = &dic_root;
 }
 
 
@@ -299,7 +305,7 @@ char reverse_put_c(FILE *output, de_node *node_p, de_node *dic_root_p)
 {
 	char root_char;
 
-	if (node_p->parent != dic_root_p)
+	if (node_p->parent != dic_root_p) 
 		root_char = reverse_put_c(output, node_p->parent, dic_root_p);
 	else
 		root_char = node_p->character;
@@ -313,55 +319,62 @@ void decompress(FILE *input, FILE *output)
 {	
 	static de_node node_array[4096];
 	static de_node dic_root;
-	static int used_index = -1;
+	static int de_used_index = -1;
 
 	// init the dic
-	for (int i = 0; i < 256; ++i)
+	if (de_used_index == -1)
 	{
-		node_array[i].character = (char)i;
-		node_array[i].parent = &dic_root;
-		used_index++;
+		for (int i = 0; i < 256; ++i)
+		{
+			node_array[i].character = (char)i;
+			node_array[i].parent = &dic_root;
+		}
+		de_used_index = 255;
 	}
 
-	unsigned int cW = read_code(input, 12);
+	unsigned int cW = read_code(input, CODE_SIZE);
 	fputc((char)cW, output);
-	unsigned int pW = cW;
+	unsigned int pW;
 	unsigned int C;
 
 	while (cW != 4095)
 	{
-		cW = read_code(input, 12);
+		pW = cW;
+		cW = read_code(input, CODE_SIZE);
+
+		if (de_used_index == 4094)
+		{
+			memset(node_array, 0, 4096 * sizeof(de_node));
+			for (int i = 0; i < 256; ++i)
+			{
+				node_array[i].character = (char)i;
+				node_array[i].parent = &dic_root;
+			}
+			de_used_index = 255;
+
+			pW = -1;
+		}
 
 		if (node_array[cW].parent != NULL)
 		{
 			C = (unsigned int)reverse_put_c(output, &node_array[cW], &dic_root);
 			
-			// Clear the dic if it's full
-			if (used_index == 4094)
-			{
-				memset(node_array, 0, sizeof(de_node));
-				for (int i = 0; i < 256; ++i)
-				{
-					node_array[i].character = (char)i;
-					node_array[i].parent = &dic_root;
-				}
-				used_index = 255;
-				pW = C;
-			} else {
-				used_index++;
-				node_array[used_index].character = (char)C;
-				node_array[used_index].parent = &node_array[pW];
-				pW = cW;
+
+			if (pW != -1) {
+				de_used_index++;
+				node_array[de_used_index].character = (char)C;
+				node_array[de_used_index].parent = &node_array[pW];
 			}
-
-
 		} else {
+
 			C = (unsigned int)reverse_put_c(output, &node_array[pW], &dic_root);
 			fputc((char)C, output);
 
-			used_index++;
-			node_array[used_index].character = (char)C;
-			node_array[used_index].parent = &node_array[pW];
+			if (pW != -1) {
+				de_used_index++;
+				node_array[de_used_index].character = (char)C;
+				node_array[de_used_index].parent = &node_array[pW];
+			}
 		}
 	}
 
