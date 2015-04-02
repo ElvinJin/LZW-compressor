@@ -251,7 +251,6 @@ void compress(FILE *input, FILE *output)
 		}
 		used_index = 255;
 	}
-
 	// Start loop
 	c = fgetc(input);
 
@@ -262,18 +261,16 @@ void compress(FILE *input, FILE *output)
 			write_code(output, p - node_array, CODE_SIZE);
 			// Add (p,c) to dictionary/tree
 			// clear tree if it's full
-
 			if (used_index >= 4094)
 			{
 				memset(node_array, 0, 4096*sizeof(com_node));
-				used_index = 255;// should be 255
+				used_index = 255;
 			}
 			else 
 			{
 				used_index++;
 				p->child[c] = &node_array[used_index];
 			}
-
 			// p point to c
 			p = dic_root.child[c];
 		} 
@@ -281,7 +278,6 @@ void compress(FILE *input, FILE *output)
 		{
 			p = p->child[c];
 		}
-
 		c = fgetc(input);
 	}
 
