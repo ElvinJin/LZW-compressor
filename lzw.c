@@ -341,6 +341,8 @@ void decompress(FILE *input, FILE *output)
 	{
 		pW = cW;
 		cW = read_code(input, CODE_SIZE);
+		if (cW == 4095)
+			break;
 
 		if (de_used_index == 4094)
 		{
@@ -358,7 +360,6 @@ void decompress(FILE *input, FILE *output)
 		if (node_array[cW].parent != NULL)
 		{
 			C = (unsigned int)reverse_put_c(output, &node_array[cW], &dic_root);
-			
 
 			if (pW != -1) {
 				de_used_index++;
