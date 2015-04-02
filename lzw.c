@@ -173,7 +173,7 @@ unsigned int read_code(FILE *input, unsigned int code_size)
 {
     unsigned int return_value;
     static int input_bit_count = 0;
-    static unsigned long input_bit_buffer = 0L;
+    static unsigned int input_bit_buffer = 0L;
 
     /* The code file is treated as an input bit-stream. Each     */
     /*   character read is stored in input_bit_buffer, which     */
@@ -182,7 +182,7 @@ unsigned int read_code(FILE *input, unsigned int code_size)
     /* input_bit_count stores the no. of bits left in the buffer */
 
     while (input_bit_count <= 24) {
-        input_bit_buffer |= (unsigned long) getc(input) << (24-input_bit_count);
+        input_bit_buffer |= (unsigned int) getc(input) << (24-input_bit_count);
         input_bit_count += 8;
     }
     
@@ -209,7 +209,7 @@ void write_code(FILE *output, unsigned int code, unsigned int code_size)
 
     /* output_bit_count stores the no. of bits left              */    
 
-    output_bit_buffer |= (unsigned) code << (32-code_size-output_bit_count);
+    output_bit_buffer |= (unsigned int) code << (32-code_size-output_bit_count);
     output_bit_count += code_size;
 
     while (output_bit_count >= 8) {
