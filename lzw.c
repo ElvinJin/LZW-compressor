@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 					current_file_name = strtok(output_file_names, "\n");
 				else
 					current_file_name = strtok(NULL, "\n");
-				printf(current_file_name);
+				
 				FILE *file_to_output = fopen(current_file_name, "wb");
 				decompress(lzw_file, file_to_output);
 				fclose(file_to_output);
